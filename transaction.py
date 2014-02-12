@@ -28,13 +28,11 @@ def _dump_tx(datadir, tx_hash, tx_pos):
   ds.close_file()
   blockfile.close()
 
-def dump_transaction(datadir, db_env, tx_id):
+def dump_transaction(datadir, tx_id):
   """ Dump a transaction, given hexadecimal tx_id-- either the full ID
       OR a short_hex version of the id.
   """
-  db = DB(db_env)
   try:
-    
     db=plyvel.DB(os.path.join(datadir, 'blocks','index'),compression=None)
   except:
     logging.error("Couldn't open blocks/index.  Try quitting any running Bitcoin apps.")

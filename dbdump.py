@@ -74,7 +74,7 @@ def main():
     dump_blkindex_summary(db_env)
 
   if options.dump_transaction is not None:
-    dump_transaction(db_dir, db_env, options.dump_transaction)
+    dump_transaction(db_dir, options.dump_transaction)
 
   if options.dump_block is not None:
     if len(options.dump_block) < 7: # Probably an integer...

@@ -8,20 +8,17 @@ import os.path
 import re
 import sys
 import time
-
+import plyvel
 from BCDataStream import *
 from base58 import public_key_to_bc_address
 from util import short_hex, long_hex
 from deserialize import *
 
-def _open_blkindex(db_env):
-  db = DB(db_env)
+def _open_blkindex(datadir):
   try:
-    r = db.open("blkindex.dat", "main", DB_BTREE, DB_THREAD|DB_RDONLY)
-  except DBError:
-    r = True
-  if r is not None:
-    logging.error("Couldn't open blkindex.dat/main.  Try quitting any running Bitcoin apps.")
+    db=plyvel.DB(os.path.join(datadir, 'blocks','index'),compression=None)
+  except:
+    logging.error("Couldn't open blocks/index.  Try quitting any running Bitcoin apps.")
     sys.exit(1)
   return db
 
@@ -31,8 +28,8 @@ def _read_CDiskTxPos(stream):
   n_tx_pos = stream.read_uint32()
   return (n_file, n_block_pos, n_tx_pos)
 
-def _dump_block(datadir, nFile, nBlockPos, hash256, hashNext, do_print=True, print_raw_tx=False, print_json=False):
-  blockfile = open(os.path.join(datadir, "blk%04d.dat"%(nFile,)), "rb")
+def _dump_block(datadir, nFile, nBlockPos, hash256, do_print=True, print_raw_tx=False, print_json=False):
+  blockfile = open(os.path.join(datadir,"blocks","blk%05d.dat"%(nFile,)), "rb")
   ds = BCDataStream()
   ds.map_file(blockfile, nBlockPos)
   d = parse_Block(ds)
@@ -41,7 +38,6 @@ def _dump_block(datadir, nFile, nBlockPos, hash256, hashNext, do_print=True, pri
   blockfile.close()
   if do_print:
     print "BLOCK "+long_hex(hash256[::-1])
-    print "Next block: "+long_hex(hashNext[::-1])
     print block_string
   elif print_json:
     import json
@@ -58,12 +54,14 @@ def _dump_block(datadir, nFile, nBlockPos, hash256, hashNext, do_print=True, pri
 
 def _parse_block_index(vds):
   d = {}
-  d['version'] = vds.read_int32()
-  d['hashNext'] = vds.read_bytes(32)
-  d['nFile'] = vds.read_uint32()
-  d['nBlockPos'] = vds.read_uint32()
-  d['nHeight'] = vds.read_int32()
-
+  d['version'] = vds.read_var_int()
+  d['nHeight'] = vds.read_var_int()
+  d['nStatus'] = vds.read_var_int()
+  d['nTx'] = vds.read_var_int()
+  d['nFile'] = vds.read_var_int()
+  d['nBlockPos'] = vds.read_var_int()
+  d['nUndoPos'] = vds.read_var_int()
+  
   header_start = vds.read_cursor
   d['b_version'] = vds.read_int32()
   d['hashPrev'] = vds.read_bytes(32)
@@ -79,34 +77,33 @@ def dump_block(datadir, db_env, block_hash, print_raw_tx=False, print_json=False
   """ Dump a block, given hexadecimal hash-- either the full hash
       OR a short_hex version of the it.
   """
-  db = _open_blkindex(db_env)
+  db = _open_blkindex(datadir)
 
   kds = BCDataStream()
   vds = BCDataStream()
 
   n_blockindex = 0
 
-  key_prefix = "\x0ablockindex"
-  cursor = db.cursor()
-  (key, value) = cursor.set_range(key_prefix)
+  key_prefix = "b"+(block_hash.decode('hex_codec')[::-1])
+  cursor = db.iterator(prefix=key_prefix)
 
-  while key.startswith(key_prefix):
+  for (key,value) in cursor: 
     kds.clear(); kds.write(key)
     vds.clear(); vds.write(value)
 
-    type = kds.read_string()
+    # Skip the b prefix
+    kds.read_bytes(1)
     hash256 = kds.read_bytes(32)
     hash_hex = long_hex(hash256[::-1])
-    block_data = _parse_block_index(vds)
 
     if (hash_hex.startswith(block_hash) or short_hex(hash256[::-1]).startswith(block_hash)):
+      block_data = _parse_block_index(vds)
       if print_json == False:
           print "Block height: "+str(block_data['nHeight'])
-          _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'], hash256, block_data['hashNext'], print_raw_tx=print_raw_tx)
+          _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'], hash256, print_raw_tx=print_raw_tx)
       else:
-          _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'], hash256, block_data['hashNext'], print_json=print_json, do_print=False)
-
-    (key, value) = cursor.next()
+          _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'], hash256,  print_json=print_json, do_print=False)
+      break
 
   db.close()
 
