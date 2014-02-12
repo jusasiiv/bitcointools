@@ -7,22 +7,22 @@ import logging
 import os.path
 import sys
 import time
-
+import plyvel
 from BCDataStream import *
 from base58 import public_key_to_bc_address
 from util import short_hex
 from deserialize import *
-
+BLOCK_HEADER_SIZE = 80
 def _read_CDiskTxPos(stream):
-  n_file = stream.read_uint32()
-  n_block_pos = stream.read_uint32()
-  n_tx_pos = stream.read_uint32()
+  n_file = stream.read_var_int()
+  n_block_pos = stream.read_var_int()
+  n_tx_pos = stream.read_var_int()
   return (n_file, n_block_pos, n_tx_pos)
 
 def _dump_tx(datadir, tx_hash, tx_pos):
-  blockfile = open(os.path.join(datadir, "blk%04d.dat"%(tx_pos[0],)), "rb")
+  blockfile = open(os.path.join(datadir, "blocks","blk%05d.dat"%(tx_pos[0],)), "rb")
   ds = BCDataStream()
-  ds.map_file(blockfile, tx_pos[2])
+  ds.map_file(blockfile, tx_pos[1]+BLOCK_HEADER_SIZE+tx_pos[2])
   d = parse_Transaction(ds)
   print deserialize_Transaction(d)
   ds.close_file()
@@ -34,12 +34,10 @@ def dump_transaction(datadir, db_env, tx_id):
   """
   db = DB(db_env)
   try:
-    r = db.open("blkindex.dat", "main", DB_BTREE, DB_THREAD|DB_RDONLY)
-  except DBError:
-    r = True
-
-  if r is not None:
-    logging.error("Couldn't open blkindex.dat/main.  Try quitting any running Bitcoin apps.")
+    
+    db=plyvel.DB(os.path.join(datadir, 'blocks','index'),compression=None)
+  except:
+    logging.error("Couldn't open blocks/index.  Try quitting any running Bitcoin apps.")
     sys.exit(1)
 
   kds = BCDataStream()
@@ -48,23 +46,20 @@ def dump_transaction(datadir, db_env, tx_id):
   n_tx = 0
   n_blockindex = 0
 
-  key_prefix = "\x02tx"+(tx_id[-4:].decode('hex_codec')[::-1])
-  cursor = db.cursor()
-  (key, value) = cursor.set_range(key_prefix)
-
-  while key.startswith(key_prefix):
+  key_prefix = "t"+(tx_id[-4:].decode('hex_codec')[::-1])
+  cursor = db.iterator(prefix=key_prefix)
+  for (key,value) in cursor: 
     kds.clear(); kds.write(key)
     vds.clear(); vds.write(value)
 
-    type = kds.read_string()
+    # Skip the t prefix
+    kds.read_bytes(1)
     hash256 = (kds.read_bytes(32))
     hash_hex = long_hex(hash256[::-1])
-    version = vds.read_uint32()
-    tx_pos = _read_CDiskTxPos(vds)
     if (hash_hex.startswith(tx_id) or short_hex(hash256[::-1]).startswith(tx_id)):
+      tx_pos = _read_CDiskTxPos(vds)
       _dump_tx(datadir, hash256, tx_pos)
-
-    (key, value) = cursor.next()
+      break
 
   db.close()
 

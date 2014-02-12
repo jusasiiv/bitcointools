@@ -91,6 +91,17 @@ class BCDataStream(object):
       size = self._read_num('<Q')
     return size
 
+  def read_var_int(self):
+    n = 0
+    while(True):
+      ch = ord(self.input[self.read_cursor])
+      self.read_cursor += 1
+      n = (n << 7) | (ch & 0x7F)
+      if (ch & 0x80):
+        n=n+1
+      else:
+        return n
+
   def write_compact_size(self, size):
     if size < 0:
       raise SerializationError("attempt to write size < 0")
