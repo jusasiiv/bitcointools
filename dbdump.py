@@ -71,7 +71,7 @@ def main():
     check_block_chain(db_env)
 
   if options.dump_blkindex:
-    dump_blkindex_summary(db_env)
+    dump_blkindex_summary(db_dir)
 
   if options.dump_transaction is not None:
     dump_transaction(db_dir, options.dump_transaction)

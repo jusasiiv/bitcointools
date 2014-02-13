@@ -7,21 +7,18 @@ import logging
 from operator import itemgetter
 import sys
 import time
-
+import os
+import plyvel
 from BCDataStream import *
 from base58 import public_key_to_bc_address
 from util import short_hex
 from deserialize import *
 
-def dump_blkindex_summary(db_env):
-  db = DB(db_env)
+def dump_blkindex_summary(datadir):
   try:
-    r = db.open("blkindex.dat", "main", DB_BTREE, DB_THREAD|DB_RDONLY)
-  except DBError:
-    r = True
-
-  if r is not None:
-    logging.error("Couldn't open blkindex.dat/main.  Try quitting any running Bitcoin apps.")
+    db=plyvel.DB(os.path.join(datadir, 'blocks','index'),compression=None)
+  except:
+    logging.error("Couldn't open blocks/index.  Try quitting any running Bitcoin apps.")
     sys.exit(1)
 
   kds = BCDataStream()
@@ -31,22 +28,18 @@ def dump_blkindex_summary(db_env):
   n_blockindex = 0
 
   print("blkindex file summary:")
-  for (key, value) in db.items():
+  for (key, value) in db.iterator():
     kds.clear(); kds.write(key)
     vds.clear(); vds.write(value)
 
-    type = kds.read_string()
+    type = kds.read_bytes(1)
 
-    if type == "tx":
+    if type == "t":
       n_tx += 1
-    elif type == "blockindex":
+    elif type == "b":
       n_blockindex += 1
-    elif type == "version":
-      version = vds.read_int32()
-      print(" Version: %d"%(version,))
-    elif type == "hashBestChain":
-      hash = vds.read_bytes(32)
-      print(" HashBestChain: %s"%(hash.encode('hex_codec'),))
+    elif type == "F":
+      print(" Flag: %s %s"%(key, value))
     else:
       logging.warn("blkindex: unknown type '%s'"%(type,))
       continue
