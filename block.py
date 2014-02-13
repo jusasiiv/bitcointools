@@ -22,6 +22,15 @@ def _open_blkindex(datadir):
     sys.exit(1)
   return db
 
+def _open_chainstate(datadir):
+  try:
+    db=plyvel.DB(os.path.join(datadir, 'chainstate'),compression=None)
+  except:
+    logging.error("Couldn't open blocks/index.  Try quitting any running Bitcoin apps.")
+    sys.exit(1)
+  return db
+
+
 def _read_CDiskTxPos(stream):
   n_file = stream.read_uint32()
   n_block_pos = stream.read_uint32()
@@ -82,7 +91,6 @@ def dump_block(datadir, db_env, block_hash, print_raw_tx=False, print_json=False
   kds = BCDataStream()
   vds = BCDataStream()
 
-  n_blockindex = 0
 
   key_prefix = "b"+(block_hash.decode('hex_codec')[::-1])
   cursor = db.iterator(prefix=key_prefix)
@@ -107,8 +115,10 @@ def dump_block(datadir, db_env, block_hash, print_raw_tx=False, print_json=False
 
   db.close()
 
-def read_block(db_cursor, hash):
-  (key,value) = db_cursor.set_range("\x0ablockindex"+hash)
+def read_block(db, hash):
+  key_prefix = "b"+hash
+  cursor = db.iterator(prefix=key_prefix)
+  (key, value) = cursor.next()
   vds = BCDataStream()
   vds.clear(); vds.write(value)
   block_data = _parse_block_index(vds)
@@ -122,23 +132,17 @@ def scan_blocks(datadir, db_env, callback_fn):
       stop, True if it should continue.
       Returns last block_data scanned.
   """
-  db = _open_blkindex(db_env)
-
-  kds = BCDataStream()
-  vds = BCDataStream()
-  
   # Read the hashBestChain record:
-  cursor = db.cursor()
-  (key, value) = cursor.set_range("\x0dhashBestChain")
-  vds.write(value)
-  hashBestChain = vds.read_bytes(32)
-
-  block_data = read_block(cursor, hashBestChain)
+  db = _open_chainstate(datadir)
+  hashBestChain = db.get('B')
+  
+  db = _open_blkindex(datadir)
+  block_data = read_block(db, hashBestChain)
 
   while callback_fn(block_data):
     if block_data['nHeight'] == 0:
       break;
-    block_data = read_block(cursor, block_data['hashPrev'])
+    block_data = read_block(db, block_data['hashPrev'])
   return block_data
 
 
@@ -152,45 +156,44 @@ def dump_block_n(datadir, db_env, block_number, print_raw_tx=False, print_json=F
   
   if print_json == False:
     print "Block height: "+str(block_data['nHeight'])
-    _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'], block_data['hash256'], block_data['hashNext'], print_raw_tx=print_raw_tx, print_json=print_json)
+    _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'], block_data['hash256'], print_raw_tx=print_raw_tx, print_json=print_json)
   else:
-    _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'], block_data['hash256'], block_data['hashNext'], do_print=False, print_raw_tx=print_raw_tx, print_json=print_json)
+    _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'], block_data['hash256'], do_print=False, print_raw_tx=print_raw_tx, print_json=print_json)
     
 def search_blocks(datadir, db_env, pattern):
   """ Dump a block given block number (== height, genesis block is 0)
   """
-  db = _open_blkindex(db_env)
+  db = _open_blkindex(datadir)
   kds = BCDataStream()
   vds = BCDataStream()
   
   # Read the hashBestChain record:
-  cursor = db.cursor()
-  (key, value) = cursor.set_range("\x0dhashBestChain")
-  vds.write(value)
-  hashBestChain = vds.read_bytes(32)
-  block_data = read_block(cursor, hashBestChain)
+  db = _open_chainstate(datadir)
+  hashBestChain = db.get('B')
+  db = _open_blkindex(datadir)
+  block_data = read_block(db, hashBestChain)
 
   if pattern == "NONSTANDARD_CSCRIPTS": # Hack to look for non-standard transactions
-    search_odd_scripts(datadir, cursor, block_data)
+    search_odd_scripts(datadir, db, block_data)
     return
 
   while True:
     block_string = _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'],
-                               block_data['hash256'], block_data['hashNext'], False)
-    
+                               block_data['hash256'], False)
     if re.search(pattern, block_string) is not None:
       print "MATCH: Block height: "+str(block_data['nHeight'])
       print block_string
-
+      break
+    
     if block_data['nHeight'] == 0:
       break
-    block_data = read_block(cursor, block_data['hashPrev'])
+    block_data = read_block(db, block_data['hashPrev'])
     
-def search_odd_scripts(datadir, cursor, block_data):
+def search_odd_scripts(datadir, db, block_data):
   """ Look for non-standard transactions """
   while True:
     block_string = _dump_block(datadir, block_data['nFile'], block_data['nBlockPos'],
-                               block_data['hash256'], block_data['hashNext'], False)
+                               block_data['hash256'], False)
     
     found_nonstandard = False
     for m in re.finditer(r'TxIn:(.*?)$', block_string, re.MULTILINE):
@@ -216,7 +219,7 @@ def search_odd_scripts(datadir, cursor, block_data):
 
     if block_data['nHeight'] == 0:
       break
-    block_data = read_block(cursor, block_data['hashPrev'])
+    block_data = read_block(db, block_data['hashPrev'])
   
 def check_block_chain(db_env):
   """ Make sure hashPrev/hashNext pointers are consistent through block chain """
