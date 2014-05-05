@@ -5,8 +5,10 @@
 from BCDataStream import *
 from enumeration import Enumeration
 from base58 import public_key_to_bc_address, hash_160_to_bc_address
-import logging
+from decimal import Decimal
+import hashlib
 import socket
+import binascii
 import time
 from util import short_hex, long_hex
 import struct
@@ -47,19 +49,12 @@ def parse_TxIn(vds):
   return d
 
 def deserialize_TxIn(d, transaction_index=None, owner_keys=None):
+  result = {}
   if d['prevout_hash'] == "\x00"*32:
-    result = "TxIn: COIN GENERATED"
-    result += " coinbase:"+d['scriptSig'].encode('hex_codec')
-  elif transaction_index is not None and d['prevout_hash'] in transaction_index:
-    p = transaction_index[d['prevout_hash']]['txOut'][d['prevout_n']]
-    result = "TxIn: value: %f"%(p['value']/1.0e8,)
-    result += " prev("+long_hex(d['prevout_hash'][::-1])+":"+str(d['prevout_n'])+")"
+    result['coinbase'] = d['scriptSig'].encode('hex_codec')
   else:
-    result = "TxIn: prev("+long_hex(d['prevout_hash'][::-1])+":"+str(d['prevout_n'])+")"
-    pk = extract_public_key(d['scriptSig'])
-    result += " pubkey: "+pk
-    result += " sig: "+decode_script(d['scriptSig'])
-  if d['sequence'] < 0xffffffff: result += " sequence: "+hex(d['sequence'])
+    result['txid'] = long_hex(d['prevout_hash'][::-1])
+    result['vout'] = d['prevout_n']
   return result
 
 def parse_TxOut(vds):
@@ -69,13 +64,16 @@ def parse_TxOut(vds):
   return d
 
 def deserialize_TxOut(d, owner_keys=None):
-  result =  "TxOut: value: %f"%(d['value']/1.0e8,)
+  result = {}
+  result['value'] = Decimal(d['value']) / Decimal(1.0e8)
   pk = extract_public_key(d['scriptPubKey'])
-  result += " pubkey: "+pk
-  result += " Script: "+decode_script(d['scriptPubKey'])
-  if owner_keys is not None:
-    if pk in owner_keys: result += " Own: True"
-    else: result += " Own: False"
+  addr_list = []
+  if type(pk) is list:
+    addr_list = pk
+  elif pk:
+    addr_list = [pk]
+  result['scriptPubKey']={}
+  result['scriptPubKey']['addresses'] = addr_list
   return result
 
 def parse_Transaction(vds):
@@ -95,14 +93,16 @@ def parse_Transaction(vds):
   return d
 
 def deserialize_Transaction(d, transaction_index=None, owner_keys=None, print_raw_tx=False):
-  result = "%d tx in, %d out\n"%(len(d['txIn']), len(d['txOut']))
+  result = {}
+  result['vin'] = []
+  result['vout'] = []
   for txIn in d['txIn']:
-    result += deserialize_TxIn(txIn, transaction_index) + "\n"
-  for txOut in d['txOut']:
-    result += deserialize_TxOut(txOut, owner_keys) + "\n"
-  if print_raw_tx == True:
-      result += "Transaction hex value: " + d['__data__'].encode('hex') + "\n"
-  
+    result['vin'].append(deserialize_TxIn(txIn, transaction_index)) 
+  for (idx,txOut) in enumerate(d['txOut']):
+    txout = deserialize_TxOut(txOut, owner_keys)
+    txout['n'] = idx
+    result['vout'].append(txout)
+  result['txid'] = binascii.hexlify(hashlib.sha256(hashlib.sha256(d['__data__']).digest()).digest()[::-1])
   return result
 
 def parse_MerkleTx(vds):
@@ -193,14 +193,11 @@ def parse_Block(vds):
   return d
   
 def deserialize_Block(d, print_raw_tx=False):
-  result = "Time: "+time.ctime(d['nTime'])+" Nonce: "+str(d['nNonce'])
-  result += "\nnBits: 0x"+hex(d['nBits'])
-  result += "\nhashMerkleRoot: 0x"+d['hashMerkleRoot'][::-1].encode('hex_codec')
-  result += "\nPrevious block: "+d['hashPrev'][::-1].encode('hex_codec')
-  result += "\n%d transactions:\n"%len(d['transactions'])
+  result = []
   for t in d['transactions']:
-    result += deserialize_Transaction(t, print_raw_tx=print_raw_tx)+"\n"
-  result += "\nRaw block header: "+d['__header__'].encode('hex_codec')
+    tx = deserialize_Transaction(t, print_raw_tx=print_raw_tx)
+    tx['time'] = d['nTime']
+    result.append(tx)
   return result
 
 def parse_BlockLocator(vds):
@@ -292,7 +289,7 @@ def extract_public_key(bytes, version='\x00'):
   try:
     decoded = [ x for x in script_GetOp(bytes) ]
   except struct.error:
-    return "(None)"
+    return None
 
   # non-generated TxIn transactions push a signature
   # (seventy-something bytes) and then their public key
@@ -322,7 +319,7 @@ def extract_public_key(bytes, version='\x00'):
   ]
   for match in multisigs:
     if match_decoded(decoded, match):
-      return "["+','.join([public_key_to_bc_address(decoded[i][1]) for i in range(1,len(decoded)-1)])+"]"
+      return [public_key_to_bc_address(decoded[i][1]) for i in range(1,len(decoded)-1)]
 
   # BIP16 TxOuts look like:
   # HASH160 20 BYTES:... EQUAL
@@ -330,4 +327,4 @@ def extract_public_key(bytes, version='\x00'):
   if match_decoded(decoded, match):
     return hash_160_to_bc_address(decoded[1][1], version="\x05")
 
-  return "(None)"
+  return None
