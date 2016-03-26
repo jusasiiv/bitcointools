@@ -78,6 +78,7 @@ def deserialize_TxOut(d, owner_keys=None):
 
 def parse_Transaction(vds):
   d = {}
+  d['size'] = len(vds.input) 
   start_pos = vds.read_cursor
   d['version'] = vds.read_int32()
   n_vin = vds.read_compact_size()
@@ -96,6 +97,7 @@ def deserialize_Transaction(d, transaction_index=None, owner_keys=None, print_ra
   result = {}
   result['vin'] = []
   result['vout'] = []
+  result['size'] = d['size']
   for txIn in d['txIn']:
     result['vin'].append(deserialize_TxIn(txIn, transaction_index)) 
   for (idx,txOut) in enumerate(d['txOut']):
