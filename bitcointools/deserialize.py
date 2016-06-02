@@ -195,14 +195,14 @@ def parse_Block(vds):
 
   return d
   
-def deserialize_Block(d, print_raw_tx=False):
+def deserialize_Block(d, print_raw_tx=False, version='\x00'):
   result = []
   # block timestamps are unreliable 
   # make sure it is less than current time
   current_time = int(time.time())
   block_time =  d['nTime'] if  d['nTime'] < current_time else current_time
   for t in d['transactions']:
-    tx = deserialize_Transaction(t, print_raw_tx=print_raw_tx)
+    tx = deserialize_Transaction(t, print_raw_tx=print_raw_tx, version=version)
     tx['time'] = block_time
     result.append(tx)
   return result
