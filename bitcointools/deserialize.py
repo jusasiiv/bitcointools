@@ -63,10 +63,10 @@ def parse_TxOut(vds):
   d['scriptPubKey'] = vds.read_bytes(vds.read_compact_size())
   return d
 
-def deserialize_TxOut(d, owner_keys=None):
+def deserialize_TxOut(d, owner_keys=None, version='\x00'):
   result = {}
   result['value'] = Decimal(d['value']) / Decimal(1.0e8)
-  pk = extract_public_key(d['scriptPubKey'])
+  pk = extract_public_key(d['scriptPubKey'], version)
   addr_list = []
   if type(pk) is list:
     addr_list = pk
@@ -93,7 +93,8 @@ def parse_Transaction(vds):
   d['__data__'] = vds.input[start_pos:vds.read_cursor]
   return d
 
-def deserialize_Transaction(d, transaction_index=None, owner_keys=None, print_raw_tx=False):
+def deserialize_Transaction(d, transaction_index=None, owner_keys=None,
+                            print_raw_tx=False, version='\x00'):
   result = {}
   result['vin'] = []
   result['vout'] = []
@@ -101,7 +102,7 @@ def deserialize_Transaction(d, transaction_index=None, owner_keys=None, print_ra
   for txIn in d['txIn']:
     result['vin'].append(deserialize_TxIn(txIn, transaction_index)) 
   for (idx,txOut) in enumerate(d['txOut']):
-    txout = deserialize_TxOut(txOut, owner_keys)
+    txout = deserialize_TxOut(txOut, owner_keys, version)
     txout['n'] = idx
     result['vout'].append(txout)
   result['txid'] = binascii.hexlify(hashlib.sha256(hashlib.sha256(d['__data__']).digest()).digest()[::-1])
