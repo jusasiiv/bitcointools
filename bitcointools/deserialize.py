@@ -12,7 +12,6 @@ import binascii
 import time
 from util import short_hex, long_hex
 import struct
-import logging
 
 def parse_CAddress(vds):
   d = {}
@@ -78,20 +77,28 @@ def deserialize_TxOut(d, owner_keys=None, version='\x00'):
   return result
 
 def parse_Transaction(vds):
+  #For format see transaction serialization
+  #in https://bitcoincore.org/en/segwit_wallet_dev/
   d = {}
   flag = 0
+  #We need to exclude witness and flag data
+  #for txid calculation
+  tx_data = ''
   d['size'] = len(vds.input) 
-  start_pos = vds.read_cursor
+  
+  tx_data_pos = vds.read_cursor
   d['version'] = vds.read_int32()
+  tx_data += vds.input[tx_data_pos:vds.read_cursor]
+  
+  tx_data_pos = vds.read_cursor
   n_vin = vds.read_compact_size()
   if (n_vin == 0):
     flag = vds.read_compact_size()
     if (flag != 1):
-      raise Exception('Expecting 1 got {}'.format(flag))
-    else:
-      logging.info("all ok")
-  
+      raise Exception('Segwit error: expecting 1 got {}'.format(flag))
+ 
   if (flag):    
+    tx_data_pos = vds.read_cursor
     n_vin = vds.read_compact_size()
   
   d['txIn'] = []
@@ -102,12 +109,16 @@ def parse_Transaction(vds):
   for i in xrange(n_vout):
     d['txOut'].append(parse_TxOut(vds))
 
+  tx_data += vds.input[tx_data_pos:vds.read_cursor]
+  
   if (flag):  
     read_witness_data(vds, n_vin)  
   
+  tx_data_pos = vds.read_cursor
   d['lockTime'] = vds.read_uint32()
-  d['__data__'] = vds.input[start_pos:vds.read_cursor]
-  logging.info('data is {}'.format(binascii.hexlify(d['__data__'])))
+  tx_data += vds.input[tx_data_pos:vds.read_cursor]
+
+  d['__data__'] = tx_data
   return d
 
 def read_witness_data(vds, txin_size):
@@ -117,7 +128,6 @@ def read_witness_data(vds, txin_size):
       item_size = vds.read_compact_size()
       #Read the witness item
       out = vds.read_bytes(item_size)
-      logging.info('read bytes {}'.format(binascii.hexlify(out[:item_size])))
 
 def deserialize_Transaction(d, transaction_index=None, owner_keys=None,
                             print_raw_tx=False, version='\x00'):
@@ -132,7 +142,6 @@ def deserialize_Transaction(d, transaction_index=None, owner_keys=None,
     txout['n'] = idx
     result['vout'].append(txout)
   result['txid'] = binascii.hexlify(hashlib.sha256(hashlib.sha256(d['__data__']).digest()).digest()[::-1])
-  logging.info('tx id {} '.format(result['txid']))
   return result
 
 def parse_MerkleTx(vds):
@@ -218,7 +227,6 @@ def parse_Block(vds):
 #    d['auxpow'] = parse_AuxPow(vds)
   nTransactions = vds.read_compact_size()
   for i in xrange(nTransactions):
-    logging.info('tx no {}'.format(i))
     d['transactions'].append(parse_Transaction(vds))
 
   return d
