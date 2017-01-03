@@ -12,6 +12,7 @@ import binascii
 import time
 from util import short_hex, long_hex
 import struct
+import logging
 
 def parse_CAddress(vds):
   d = {}
@@ -78,10 +79,21 @@ def deserialize_TxOut(d, owner_keys=None, version='\x00'):
 
 def parse_Transaction(vds):
   d = {}
+  flag = 0
   d['size'] = len(vds.input) 
   start_pos = vds.read_cursor
   d['version'] = vds.read_int32()
   n_vin = vds.read_compact_size()
+  if (n_vin == 0):
+    flag = vds.read_compact_size()
+    if (flag != 1):
+      raise Exception('Expecting 1 got {}'.format(flag))
+    else:
+      logging.info("all ok")
+  
+  if (flag):    
+    n_vin = vds.read_compact_size()
+  
   d['txIn'] = []
   for i in xrange(n_vin):
     d['txIn'].append(parse_TxIn(vds))
@@ -89,9 +101,23 @@ def parse_Transaction(vds):
   d['txOut'] = []
   for i in xrange(n_vout):
     d['txOut'].append(parse_TxOut(vds))
+
+  if (flag):  
+    read_witness_data(vds, n_vin)  
+  
   d['lockTime'] = vds.read_uint32()
   d['__data__'] = vds.input[start_pos:vds.read_cursor]
+  logging.info('data is {}'.format(binascii.hexlify(d['__data__'])))
   return d
+
+def read_witness_data(vds, txin_size):
+  for i in range(0, txin_size):
+    no_items = vds.read_compact_size()
+    for j in range(0, no_items):
+      item_size = vds.read_compact_size()
+      #Read the witness item
+      out = vds.read_bytes(item_size)
+      logging.info('read bytes {}'.format(binascii.hexlify(out[:item_size])))
 
 def deserialize_Transaction(d, transaction_index=None, owner_keys=None,
                             print_raw_tx=False, version='\x00'):
@@ -106,6 +132,7 @@ def deserialize_Transaction(d, transaction_index=None, owner_keys=None,
     txout['n'] = idx
     result['vout'].append(txout)
   result['txid'] = binascii.hexlify(hashlib.sha256(hashlib.sha256(d['__data__']).digest()).digest()[::-1])
+  logging.info('tx id {} '.format(result['txid']))
   return result
 
 def parse_MerkleTx(vds):
@@ -191,6 +218,7 @@ def parse_Block(vds):
 #    d['auxpow'] = parse_AuxPow(vds)
   nTransactions = vds.read_compact_size()
   for i in xrange(nTransactions):
+    logging.info('tx no {}'.format(i))
     d['transactions'].append(parse_Transaction(vds))
 
   return d
