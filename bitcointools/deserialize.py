@@ -368,6 +368,7 @@ def extract_public_key(bytes, version='\x00'):
   # HASH160 20 BYTES:... EQUAL
   match = [ opcodes.OP_HASH160, 0x14, opcodes.OP_EQUAL ]
   if match_decoded(decoded, match):
-    return hash_160_to_bc_address(decoded[1][1], version="\x05")
+    script_version = '\x05' if version=='\x00' else '\xC4'
+    return hash_160_to_bc_address(decoded[1][1], version=script_version)
 
   return None
