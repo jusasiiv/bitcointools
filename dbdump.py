@@ -77,7 +77,7 @@ def main():
     dump_transaction(db_dir, options.dump_transaction)
 
   if options.dump_block is not None:
-    if len(options.dump_block) < 7: # Probably an integer...
+    if len(options.dump_block) < 10: # Probably an integer...
       try:
         dump_block_n(db_dir, db_env, int(options.dump_block), options.print_raw_tx, options.print_json)
       except ValueError:
