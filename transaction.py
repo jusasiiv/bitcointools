@@ -51,12 +51,7 @@ def decode_value(key, value):
   return xor_strings(key, value)
 
 
-def dump_utxo(datadir, txid):
-  db = _open_chainstate(datadir)
-  key = "c"+ txid.decode('hex_codec')[::-1]
-  value = db.get(key)
-  obfuscate_key = get_obfuscation_key(db)
-  value = decode_value(obfuscate_key, value)
+def decode_utxo(db, value):
   # Version is extracted from the first varint of the serialized utxo
   vds = BCDataStream()
   vds.write(value)
@@ -79,13 +74,45 @@ def dump_utxo(datadir, txid):
 
       
 
-  print("version is {}".format(version))
-  print("is_coinbase {}".format(is_coinbase))
-  print("Avail is {}".format(vAvail))
+  utxo = dict(version=version, coinbase=is_coinbase)
   for (i,vout) in enumerate(vAvail):
     if (vout):
       value = vds.read_var_int()
-      print txout_decompress(value)
+      value = txout_decompress(value)
+      utxo[i] = dict(value=value, script=gettxout_script(vds))
+  return utxo    
+
+
+def dump_utxo(datadir, txid):
+  db = _open_chainstate(datadir)
+  key = "c"+ txid.decode('hex_codec')[::-1]
+  value = db.get(key)
+  obfuscate_key = get_obfuscation_key(db)
+  value = decode_value(obfuscate_key, value)
+  print decode_utxo(db, value)
+
+def gettxout_script(vds):
+  out_type = vds.read_var_int()
+  # Depending on the type, the length of the following data will differ.  Types 0 and 1 refers to P2PKH and P2SH
+  # encoded outputs. They are always followed 20 bytes of data, corresponding to the hash160 of the address (in
+  # P2PKH outputs) or to the scriptHash (in P2PKH). Notice that the leading and tailing opcodes are not included.
+  # If 2-5 is found, the following bytes encode a public key. The first by in this cases should be also included,
+  # since it determines the format of the key.
+  if out_type == 0:
+    out=hash_160_to_bc_address(vds.read_bytes(20), '\x6F')
+    otype = "Address"  
+  elif out_type == 1:
+    out = vds.read_bytes(20)
+    otype = "P2SH"
+  elif out_type in [2, 3, 4, 5]:
+    # 33 bytes (1 byte for the type + 32 bytes of data)
+    out = vds.read_bytes(32)
+    otype = "P2PK"
+    # Finally, if another value is found, it represents the length of the following data, which is uncompressed.
+  else:
+    out = vd.read_bytes(out_type - 6) 
+    otype = "Custom"
+  return (otype, out)
 
 def txout_decompress(x):
   """ Decompresses the Satoshi amount of a UTXO stored in the LevelDB. Code is a port from the Bitcoin Core C++
