@@ -7,6 +7,7 @@ import logging
 import os.path
 import sys
 import time
+import traceback
 import math
 import plyvel
 from BCDataStream import *
@@ -61,7 +62,7 @@ def decode_utxo(db, value):
   vAvail = [False]*2
   vAvail[0] = (code & 2) != 0
   vAvail[1] = (code & 4) != 0
-  nMaskCode = (code / 8) + 0 if (code & 6) != 0 else 1
+  nMaskCode = (code / 8) + (0 if (code & 6) != 0 else 1)
   #spentness bitmask
   while nMaskCode > 0:
     chAvail = ord(vds.read_bytes(1))
@@ -81,7 +82,19 @@ def decode_utxo(db, value):
       utxo[i] = dict(value=value, script=gettxout_script(vds))
   return utxo    
 
-
+def dump_all_utxo(datadir):
+  db = _open_chainstate(datadir)
+  obfuscate_key = get_obfuscation_key(db)
+  cursor = db.iterator(prefix="c")
+  for (key,value) in cursor: 
+    try:
+      value = decode_value(obfuscate_key, value)
+      txid = long_hex(key[1:][::-1])
+      decode_utxo(db, value)
+    except Exception as e:
+      print traceback.format_exc()
+      print txid
+      sys.exit(0)
 def dump_utxo(datadir, txid):
   db = _open_chainstate(datadir)
   key = "c"+ txid.decode('hex_codec')[::-1]
@@ -109,7 +122,7 @@ def gettxout_script(vds):
     otype = "P2PK"
     # Finally, if another value is found, it represents the length of the following data, which is uncompressed.
   else:
-    out = vd.read_bytes(out_type - 6) 
+    out = vds.read_bytes(out_type - 6) 
     otype = "Custom"
   return (otype, out)
 
