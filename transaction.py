@@ -55,7 +55,6 @@ def decode_utxo(db, value):
   # Version is extracted from the first varint of the serialized utxo
   vds = BCDataStream()
   vds.write(value)
-  print long_hex(value)
   version = vds.read_var_int()
   code = vds.read_var_int()
   is_coinbase = code & 1
