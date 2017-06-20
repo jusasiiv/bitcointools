@@ -1,11 +1,28 @@
 #
 # Misc util routines
 #
-
+import plyvel
+import os
 try:
   from bsddb.db import *
 except:
   pass
+
+def _open_blkindex(datadir):
+  try:
+    db=plyvel.DB(os.path.join(datadir, 'blocks','index'),compression=None)
+  except Exception as e:
+        raise Exception("Couldn't open blocks/index.  Try quitting any running "
+                        "Bitcoin apps \n{}".format(str(e)))
+  return db
+
+def _open_chainstate(datadir):
+  try:
+    db=plyvel.DB(os.path.join(datadir, 'chainstate'), compression=None)
+  except Exception as e:
+    raise Exception("Couldn't open blocks/index.  Try quitting any running "
+                    "Bitcoin apps \n{}".format(str(e)))
+  return db
 
 def long_hex(bytes):
   return bytes.encode('hex_codec')

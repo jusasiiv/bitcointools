@@ -11,24 +11,9 @@ import time
 import plyvel
 from BCDataStream import *
 from base58 import public_key_to_bc_address
-from util import short_hex, long_hex
+from util import short_hex, long_hex,_open_blkindex, _open_chainstate
 from deserialize import *
 
-def _open_blkindex(datadir):
-  try:
-    db=plyvel.DB(os.path.join(datadir, 'blocks','index'),compression=None)
-  except:
-    logging.error("Couldn't open blocks/index.  Try quitting any running Bitcoin apps.")
-    sys.exit(1)
-  return db
-
-def _open_chainstate(datadir):
-  try:
-    db=plyvel.DB(os.path.join(datadir, 'chainstate'),compression=None)
-  except:
-    logging.error("Couldn't open blocks/index.  Try quitting any running Bitcoin apps.")
-    sys.exit(1)
-  return db
 
 
 def _read_CDiskTxPos(stream):

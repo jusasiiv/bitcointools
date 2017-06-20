@@ -9,7 +9,7 @@ import sys
 from address import dump_addresses
 from wallet import dump_wallet, dump_accounts
 from blkindex import dump_blkindex_summary
-from transaction import dump_transaction
+from transaction import dump_transaction, dump_utxo
 from block import dump_block, dump_block_n, search_blocks, check_block_chain
 from util import determine_db_dir, create_env
 
@@ -34,6 +34,8 @@ def main():
                     help="Print addresses in the addr.dat file")
   parser.add_option("--transaction", action="store", dest="dump_transaction", default=None,
                     help="Dump a single transaction, given hex transaction id (or abbreviated id)")
+  parser.add_option("--utxo", action="store", dest="dump_utxo", default=None,
+                    help="Dump unspent outputs given hex transaction id (or abbreviated id)")
   parser.add_option("--block", action="store", dest="dump_block", default=None,
                     help="Dump a single block, given its hex hash (or abbreviated hex hash) OR block height")
   parser.add_option("--search-blocks", action="store", dest="search_blocks", default=None,
@@ -75,6 +77,9 @@ def main():
 
   if options.dump_transaction is not None:
     dump_transaction(db_dir, options.dump_transaction)
+  
+  if options.dump_utxo is not None:
+    dump_utxo(db_dir, options.dump_utxo)
 
   if options.dump_block is not None:
     if len(options.dump_block) < 10: # Probably an integer...
