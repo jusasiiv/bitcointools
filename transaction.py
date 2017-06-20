@@ -76,9 +76,42 @@ def dump_utxo(datadir, txid):
       vAvail.append(f)
     if (chAvail != 0):
       nMaskCode-=1;
+
+      
+
   print("version is {}".format(version))
   print("is_coinbase {}".format(is_coinbase))
   print("Avail is {}".format(vAvail))
+  for (i,vout) in enumerate(vAvail):
+    if (vout):
+      value = vds.read_var_int()
+      print txout_decompress(value)
+
+def txout_decompress(x):
+  """ Decompresses the Satoshi amount of a UTXO stored in the LevelDB. Code is a port from the Bitcoin Core C++
+  source:
+  https://github.com/bitcoin/bitcoin/blob/v0.13.2/src/compressor.cpp#L161#L185
+  :param x: Compressed amount to be decompressed.
+  :type x: int
+  :return: The decompressed amount of Satoshis.
+  :rtype: int
+  """
+
+  if x == 0:
+    return 0
+  x -= 1
+  e = x % 10
+  x /= 10
+  if e < 9:
+    d = (x % 9) + 1
+    x /= 9
+    n = x * 10 + d
+  else:
+    n = x + 1
+    while e > 0:
+      n *= 10
+      e -= 1
+  return n
 
 def dump_transaction(datadir, tx_id):
   """ Dump a transaction, given hexadecimal tx_id-- either the full ID
