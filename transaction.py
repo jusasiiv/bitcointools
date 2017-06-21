@@ -61,7 +61,7 @@ def decode_utxo(db, value):
   vAvail = [False]*2
   vAvail[0] = (code & 2) != 0
   vAvail[1] = (code & 4) != 0
-  nMaskCode = (code / 8) + 0 if (code & 6) != 0 else 1
+  nMaskCode = (code / 8) + (0 if (code & 6) != 0 else 1)
   #spentness bitmask
   while nMaskCode > 0:
     chAvail = ord(vds.read_bytes(1))
