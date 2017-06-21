@@ -175,15 +175,16 @@ def txout_decompress(x):
   x -= 1
   e = x % 10
   x /= 10
+  n = 0
   if e < 9:
     d = (x % 9) + 1
     x /= 9
     n = x * 10 + d
   else:
     n = x + 1
-    while e > 0:
-      n *= 10
-      e -= 1
+  while e > 0:
+    n *= 10
+    e -= 1
   return n
 
 def dump_transaction(datadir, tx_id):
