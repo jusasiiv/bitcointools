@@ -9,7 +9,7 @@ import sys
 from address import dump_addresses
 from wallet import dump_wallet, dump_accounts
 from blkindex import dump_blkindex_summary
-from transaction import dump_transaction, dump_utxo, dump_all_utxo
+from transaction import dump_transaction, dump_utxo, analyse_utxo
 from block import dump_block, dump_block_n, search_blocks, check_block_chain
 from util import determine_db_dir, create_env
 
@@ -28,7 +28,7 @@ def main():
                     help="Print out account names, one per line")
   parser.add_option("--blkindex", action="store_true", dest="dump_blkindex", default=False,
                     help="Print out summary of blkindex.dat file")
-  parser.add_option("--all_utxo", action="store_true", dest="all_utxo", default=False,
+  parser.add_option("--analyse_utxo", action="store_true", dest="analyse_utxo", default=False,
                     help="Print all unspent outputs")
   parser.add_option("--check-block-chain", action="store_true", dest="check_chain", default=False,
                     help="Scan back and forward through the block chain, looking for inconsistencies")
@@ -77,8 +77,8 @@ def main():
   if options.dump_blkindex:
     dump_blkindex_summary(db_dir)
   
-  if options.all_utxo:
-    dump_all_utxo(db_dir)
+  if options.analyse_utxo:
+    analyse_utxo(db_dir)
 
   if options.dump_transaction is not None:
     dump_transaction(db_dir, options.dump_transaction)

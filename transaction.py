@@ -10,6 +10,7 @@ import time
 import traceback
 import math
 import plyvel
+import bisect
 from BCDataStream import *
 from base58 import public_key_to_bc_address
 from util import short_hex, _open_blkindex, _open_chainstate
@@ -74,15 +75,21 @@ def decode_utxo(db, value):
 
       
 
-  utxo = dict(version=version, coinbase=is_coinbase)
+  utxos = dict(version=version, coinbase=is_coinbase, vout=dict())
   for (i,vout) in enumerate(vAvail):
     if (vout):
       value = vds.read_var_int()
       value = txout_decompress(value)
-      utxo[i] = dict(value=value, script=gettxout_script(vds))
-  return utxo    
+      utxos["vout"][i] = dict(value=value, script=gettxout_script(vds))
+  return utxos    
 
-def dump_all_utxo(datadir):
+def analyse_utxo(datadir):
+  #Size of P2PKH input in bytes
+  P2PKH_TXIN_SIZE = 180
+  PROGESS_INTERVAL = 10**5
+  fee_rates = [0, 50, 100, 200, 300, 500, 1000]
+  ranges = [dict(count=0, satoshi=0) for x in range(0, len(fee_rates))]
+  progress = 0
   db = _open_chainstate(datadir)
   obfuscate_key = get_obfuscation_key(db)
   cursor = db.iterator(prefix="c")
@@ -90,11 +97,30 @@ def dump_all_utxo(datadir):
     try:
       value = decode_value(obfuscate_key, value)
       txid = long_hex(key[1:][::-1])
-      decode_utxo(db, value)
+      utxos = decode_utxo(db, value)
+      for utxo in utxos["vout"].values():
+        if (utxo.get("script") and utxo["script"][0] == "Address"):
+          rate = utxo["value"]/P2PKH_TXIN_SIZE
+          insert_index = bisect.bisect(fee_rates, rate)
+          ranges[insert_index-1]["count"] += 1 
+          ranges[insert_index-1]["satoshi"] += utxo["value"]
+          progress += 1
+          if (not progress%PROGESS_INTERVAL):
+            print_output(fee_rates, progress, ranges)
     except Exception as e:
       print traceback.format_exc()
-      print txid
-      sys.exit(0)
+      print "Could not process txouts for {}".format(txid)
+  print_output(fee_rates, progress, ranges)
+
+def print_output(fee_rates, progress, ranges):
+  print "Processed {} P2PKH txouts".format(progress)
+  for i in range(0, len(fee_rates)):
+    end = fee_rates[i+1] if i<len(fee_rates)-1 else "Inf"            
+    print ("{}-{} satoshi/byte: {} txouts with total value {:.2f} BTC".
+           format(fee_rates[i], end, ranges[i]["count"], ranges[i]["satoshi"]/1.0e8))
+
+
+
 def dump_utxo(datadir, txid):
   db = _open_chainstate(datadir)
   key = "c"+ txid.decode('hex_codec')[::-1]
