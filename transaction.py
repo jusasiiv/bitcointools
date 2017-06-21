@@ -38,7 +38,8 @@ def get_obfuscation_key(db):
   cursor = db.iterator()
   (x, obfuscate_key) = cursor.next()
   if (x != "0e00".decode("hex_codec") + "obfuscate_key"):
-    raise Exception("Couldn't get obfuscation key")
+    print("Couldn't get obfuscation key, using 00000000")
+    return "00000000".decode("hex_codec")
   return obfuscate_key[1:]
 
 def decode_value(key, value):
