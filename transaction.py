@@ -113,11 +113,17 @@ def analyse_utxo(datadir):
   print_output(fee_rates, progress, ranges)
 
 def print_output(fee_rates, progress, ranges):
+  results = [dict(count=0, satoshi=0) for x in range(0, len(fee_rates))]
+  
+  #Consolidate ranges into cumulative results
+  for i, r  in enumerate(ranges):
+    results[i] = reduce(lambda x,y: dict(count=x["count"] + y["count"], 
+                                         satoshi=x["satoshi"] + y["satoshi"]),
+                        ranges[i:])
   print "Processed {} P2PKH txouts".format(progress)
   for i in range(0, len(fee_rates)):
-    end = fee_rates[i+1] if i<len(fee_rates)-1 else "Inf"            
-    print ("{}-{} satoshi/byte: {} txouts with total value {:.2f} BTC".
-           format(fee_rates[i], end, ranges[i]["count"], ranges[i]["satoshi"]/1.0e8))
+    print ("Fee is {} satoshi/byte: {} txouts are spendable having total value {:.2f} BTC".
+           format(fee_rates[i], results[i]["count"], results[i]["satoshi"]/1.0e8))
 
 
 
@@ -137,7 +143,8 @@ def gettxout_script(vds):
   # If 2-5 is found, the following bytes encode a public key. The first by in this cases should be also included,
   # since it determines the format of the key.
   if out_type == 0:
-    out=hash_160_to_bc_address(vds.read_bytes(20), '\x6F')
+    #Pass version = '\x6F' for testnet
+    out=hash_160_to_bc_address(vds.read_bytes(20), version="\x00")
     otype = "Address"  
   elif out_type == 1:
     out = vds.read_bytes(20)
