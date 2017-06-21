@@ -14,11 +14,11 @@ Point of bitcoin datadirectory testnet/mainnet
 ```
 $ python dbdump.py --analyse_utxo --datadir=/home/enigma/.bitcoin/testnet3
 Processed 100000 P2PKH txouts
-0-50 satoshi/byte: 79397 txouts with total value 0.53 BTC
-50-100 satoshi/byte: 1021 txouts with total value 0.13 BTC
-100-200 satoshi/byte: 256 txouts with total value 0.06 BTC
-200-300 satoshi/byte: 10019 txouts with total value 4.58 BTC
-300-500 satoshi/byte: 220 txouts with total value 0.16 BTC
-500-1000 satoshi/byte: 2546 txouts with total value 2.63 BTC
-1000-Inf satoshi/byte: 6541 txouts with total value 305958.95 BTC
+Fee is 0 satoshi/byte: 100000 txouts are spendable having total value 305967.04 BTC
+Fee is 50 satoshi/byte: 20603 txouts are spendable having total value 305966.51 BTC
+Fee is 100 satoshi/byte: 19582 txouts are spendable having total value 305966.38 BTC
+Fee is 200 satoshi/byte: 19326 txouts are spendable having total value 305966.32 BTC
+Fee is 300 satoshi/byte: 9307 txouts are spendable having total value 305961.73 BTC
+Fee is 500 satoshi/byte: 9087 txouts are spendable having total value 305961.58 BTC
+Fee is 1000 satoshi/byte: 6541 txouts are spendable having total value 305958.95 BTC
 ```
