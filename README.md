@@ -9,7 +9,7 @@ pip install plyvel
 ```
 
 
-Point of bitcoin datadirectory testnet/mainnet
+Point to bitcoin datadirectory testnet/mainnet
 
 ```
 $ python dbdump.py --analyse_utxo --datadir=/home/enigma/.bitcoin/testnet3
