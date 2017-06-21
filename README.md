@@ -1,7 +1,7 @@
-Script to Analyse Distribution of bitcoin txouts
+## Script to Analyse Distribution of bitcoin txouts
 
-Usage
------
+### Usage
+
 
 Requires plyvel library for reading leveldb
 ```
@@ -11,7 +11,7 @@ pip install plyvel
 
 Point of bitcoin datadirectory testnet/mainnet
 
-````
+```
 $ python dbdump.py --analyse_utxo --datadir=/home/enigma/.bitcoin/testnet3
 Processed 100000 P2PKH txouts
 0-50 satoshi/byte: 79397 txouts with total value 0.53 BTC
