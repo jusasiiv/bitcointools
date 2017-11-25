@@ -85,8 +85,7 @@ def parse_Transaction(vds):
   #We need to exclude witness and flag data
   #for txid calculation
   tx_data = ''
-  d['size'] = len(vds.input) 
-  
+  start_data_pos = vds.read_cursor 
   tx_data_pos = vds.read_cursor
   d['version'] = vds.read_int32()
   tx_data += vds.input[tx_data_pos:vds.read_cursor]
@@ -120,6 +119,7 @@ def parse_Transaction(vds):
   tx_data += vds.input[tx_data_pos:vds.read_cursor]
 
   d['__data__'] = tx_data
+  d['size'] = vds.read_cursor - start_data_pos 
   return d
 
 def read_witness_data(vds, txin_size):
