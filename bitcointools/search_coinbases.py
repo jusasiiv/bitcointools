@@ -11,11 +11,11 @@ import os
 import re
 import sys
 
-from BCDataStream import *
-from block import scan_blocks, CachedBlockFile
+from .BCDataStream import *
+from .block import scan_blocks, CachedBlockFile
 from collections import defaultdict
-from deserialize import parse_Block
-from util import determine_db_dir, create_env
+from .deserialize import parse_Block
+from .util import determine_db_dir, create_env
 
 def main():
   import optparse
@@ -59,7 +59,7 @@ def main():
       results['checked'] += 1
       if re.search(options.lookfor, scriptSig) is not None:
         results['matched'] += 1
-        if options.verbose: print("Block %d : %s"%(block_data['nHeight'], scriptSig.encode('string_escape')) )
+        if options.verbose: print(("Block %d : %s"%(block_data['nHeight'], scriptSig.encode('string_escape')) ))
 
     results['searched'] += 1
     return results['searched'] < options.howmany
@@ -69,7 +69,7 @@ def main():
   db_env.close()
 
   percent = (100.0*results['matched'])/results['checked']
-  print("Found %d matches in %d blocks (%.1f percent)"%(results['matched'], results['checked'], percent))
+  print(("Found %d matches in %d blocks (%.1f percent)"%(results['matched'], results['checked'], percent)))
 
 if __name__ == '__main__':
     main()

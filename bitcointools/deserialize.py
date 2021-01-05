@@ -2,15 +2,15 @@
 #
 #
 
-from BCDataStream import *
-from enumeration import Enumeration
-from base58 import public_key_to_bc_address, hash_160_to_bc_address
+from .BCDataStream import *
+from .enumeration import Enumeration
+from .base58 import public_key_to_bc_address, hash_160_to_bc_address
 from decimal import Decimal
 import hashlib
 import socket
 import binascii
 import time
-from util import short_hex, long_hex
+from .util import short_hex, long_hex
 import struct
 
 
@@ -51,8 +51,8 @@ def parse_TxIn(vds):
 
 def deserialize_TxIn(d, transaction_index=None, owner_keys=None):
   result = {}
-  if d['prevout_hash'] == "\x00"*32:
-    result['coinbase'] = d['scriptSig'].encode('hex_codec')
+  if d['prevout_hash'] == b'\x00'*32:
+    result['coinbase'] = binascii.hexlify(d['scriptSig'])
   else:
     result['txid'] = long_hex(d['prevout_hash'][::-1])
     result['vout'] = d['prevout_n']
@@ -85,7 +85,7 @@ def parse_Transaction(vds):
   flag = 0
   #We need to exclude witness and flag data
   #for txid calculation
-  tx_data = ''
+  tx_data = b''
   start_data_pos = vds.read_cursor 
   tx_data_pos = vds.read_cursor
   d['version'] = vds.read_int32()
@@ -103,11 +103,11 @@ def parse_Transaction(vds):
     n_vin = vds.read_compact_size()
   
   d['txIn'] = []
-  for i in xrange(n_vin):
+  for i in range(n_vin):
     d['txIn'].append(parse_TxIn(vds))
   n_vout = vds.read_compact_size()
   d['txOut'] = []
-  for i in xrange(n_vout):
+  for i in range(n_vout):
     d['txOut'].append(parse_TxOut(vds))
 
   tx_data += vds.input[tx_data_pos:vds.read_cursor]
@@ -165,18 +165,18 @@ def parse_WalletTx(vds):
   d = parse_MerkleTx(vds)
   n_vtxPrev = vds.read_compact_size()
   d['vtxPrev'] = []
-  for i in xrange(n_vtxPrev):
+  for i in range(n_vtxPrev):
     d['vtxPrev'].append(parse_MerkleTx(vds))
 
   d['mapValue'] = {}
   n_mapValue = vds.read_compact_size()
-  for i in xrange(n_mapValue):
+  for i in range(n_mapValue):
     key = vds.read_string()
     value = vds.read_string()
     d['mapValue'][key] = value
   n_orderForm = vds.read_compact_size()
   d['orderForm'] = []
-  for i in xrange(n_orderForm):
+  for i in range(n_orderForm):
     first = vds.read_string()
     second = vds.read_string()
     d['orderForm'].append( (first, second) )
@@ -229,7 +229,8 @@ def parse_Block(vds):
 #  if d['version'] & (1 << 8):
 #    d['auxpow'] = parse_AuxPow(vds)
   nTransactions = vds.read_compact_size()
-  for i in xrange(nTransactions):
+  print(nTransactions)
+  for i in range(nTransactions):
     d['transactions'].append(parse_Transaction(vds))
 
   return d
@@ -249,7 +250,7 @@ def deserialize_Block(d, print_raw_tx=False, version='\x00'):
 def parse_BlockLocator(vds):
   d = { 'hashes' : [] }
   nHashes = vds.read_compact_size()
-  for i in xrange(nHashes):
+  for i in range(nHashes):
     d['hashes'].append(vds.read_bytes(32))
   return d
 
@@ -281,7 +282,7 @@ def script_GetOp(bytes):
   i = 0
   while i < len(bytes):
     vch = None
-    opcode = ord(bytes[i])
+    opcode = bytes[i]
     i += 1
 
     if opcode <= opcodes.OP_PUSHDATA4:
@@ -331,7 +332,7 @@ def match_decoded(decoded, to_match):
       return False
   return True
 
-def extract_public_key(bytes, version='\x00'):
+def extract_public_key(bytes, version=b'\x00'):
   try:
     decoded = [ x for x in script_GetOp(bytes) ]
   except (struct.error, IndexError):

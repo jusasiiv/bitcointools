@@ -10,10 +10,10 @@ from operator import itemgetter
 import sys
 import time
 
-from BCDataStream import *
-from base58 import public_key_to_bc_address
-from util import short_hex
-from deserialize import *
+from .BCDataStream import *
+from .base58 import public_key_to_bc_address
+from .util import short_hex
+from .deserialize import *
 
 def dump_addresses(db_env):
   db = DB(db_env)
@@ -29,7 +29,7 @@ def dump_addresses(db_env):
   kds = BCDataStream()
   vds = BCDataStream()
 
-  for (key, value) in db.items():
+  for (key, value) in list(db.items()):
     kds.clear(); kds.write(key)
     vds.clear(); vds.write(value)
 
@@ -37,6 +37,6 @@ def dump_addresses(db_env):
 
     if type == "addr":
       d = parse_CAddress(vds)
-      print(deserialize_CAddress(d))
+      print((deserialize_CAddress(d)))
 
   db.close()

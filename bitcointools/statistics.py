@@ -9,11 +9,11 @@ import logging
 import os
 import sys
 
-from BCDataStream import *
-from block import scan_blocks, CachedBlockFile
+from .BCDataStream import *
+from .block import scan_blocks, CachedBlockFile
 from collections import defaultdict
-from deserialize import parse_Block
-from util import determine_db_dir, create_env
+from .deserialize import parse_Block
+from .util import determine_db_dir, create_env
 
 def main():
   import optparse
@@ -85,9 +85,9 @@ def main():
 
   db_env.close()
 
-  print "date,nTransactions,minBTC,maxBTC,totalBTC"
+  print("date,nTransactions,minBTC,maxBTC,totalBTC")
 
-  keys = n_transactions.keys()
+  keys = list(n_transactions.keys())
   keys.sort()
   for k in keys:
     v = v_transactions[k]/1.0e8
@@ -102,7 +102,7 @@ def main():
     # this will undercount multi-txout-transactions (which is good
     # right now, because they're mostly used for mining pool
     # payouts that arguably shouldn't count).
-    print "%s,%d,%.2f,%.2f,%.2f"%(k, n_transactions[k], v_min, v_max, v)
+    print("%s,%d,%.2f,%.2f,%.2f"%(k, n_transactions[k], v_min, v_max, v))
 
 if __name__ == '__main__':
     main()

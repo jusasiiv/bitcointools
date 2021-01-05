@@ -4,7 +4,7 @@
 
 import unittest
 
-import BCDataStream
+from . import BCDataStream
 
 class Tests(unittest.TestCase):
   def setUp(self):
@@ -16,7 +16,7 @@ class Tests(unittest.TestCase):
       "\xfd\x00\x07setting" : "setting",
       "\xfe\x00\x00\x00\x07setting" : "setting",
       }
-    for (input, output) in t.iteritems():
+    for (input, output) in t.items():
       self.ds.clear()
       self.ds.write(input)
       got = self.ds.read_string()

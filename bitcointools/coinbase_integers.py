@@ -13,11 +13,11 @@ import os
 import re
 import sys
 
-from BCDataStream import *
-from block import scan_blocks, CachedBlockFile
+from .BCDataStream import *
+from .block import scan_blocks, CachedBlockFile
 from collections import defaultdict
-from deserialize import parse_Block
-from util import determine_db_dir, create_env
+from .deserialize import parse_Block
+from .util import determine_db_dir, create_env
 
 def approx_date(height):
   timestamp = 1231006505+height*10*60
@@ -55,12 +55,12 @@ def main():
       return True
     (n,) = struct.unpack_from('<I', scriptSig[0:4])
     if n < 6*24*365.25*100:  # 200 years of blocks:
-      print("%d: %d (%s) version: %d/%d"%(height, n, approx_date(n), block_data['b_version'],coinbase['version']))
+      print(("%d: %d (%s) version: %d/%d"%(height, n, approx_date(n), block_data['b_version'],coinbase['version'])))
 
     if ord(scriptSig[0]) == 0x03:
       (n,) = struct.unpack_from('<I', scriptSig[1:4]+'\0')
       if n < 6*24*365.25*100:  # 200 years of blocks:
-        print("%d: PUSH %d (%s) version: %d/%d"%(height, n, approx_date(n), block_data['b_version'],coinbase['version']))
+        print(("%d: PUSH %d (%s) version: %d/%d"%(height, n, approx_date(n), block_data['b_version'],coinbase['version'])))
 
     return True
 

@@ -8,10 +8,10 @@ from operator import itemgetter
 import sys
 import time
 
-from BCDataStream import *
-from base58 import public_key_to_bc_address
-from util import short_hex
-from deserialize import *
+from .BCDataStream import *
+from .base58 import public_key_to_bc_address
+from .util import short_hex
+from .deserialize import *
 
 def dump_blkindex_summary(db_env):
   db = DB(db_env)
@@ -31,7 +31,7 @@ def dump_blkindex_summary(db_env):
   n_blockindex = 0
 
   print("blkindex file summary:")
-  for (key, value) in db.items():
+  for (key, value) in list(db.items()):
     kds.clear(); kds.write(key)
     vds.clear(); vds.write(value)
 
@@ -43,13 +43,13 @@ def dump_blkindex_summary(db_env):
       n_blockindex += 1
     elif type == "version":
       version = vds.read_int32()
-      print(" Version: %d"%(version,))
+      print((" Version: %d"%(version,)))
     elif type == "hashBestChain":
       hash = vds.read_bytes(32)
-      print(" HashBestChain: %s"%(hash.encode('hex_codec'),))
+      print((" HashBestChain: %s"%(hash.encode('hex_codec'),)))
     else:
       logging.warn("blkindex: unknown type '%s'"%(type,))
       continue
 
-  print(" %d transactions, %d blocks."%(n_tx, n_blockindex))
+  print((" %d transactions, %d blocks."%(n_tx, n_blockindex)))
   db.close()

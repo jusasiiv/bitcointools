@@ -1,14 +1,14 @@
 #
 # Misc util routines
 #
-
+import codecs
 try:
   from bsddb.db import *
 except:
   pass
 
 def long_hex(bytes):
-  return bytes.encode('hex_codec')
+  return codecs.encode(bytes,'hex_codec')
 
 def short_hex(bytes):
   t = bytes.encode('hex_codec')
