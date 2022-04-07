@@ -56,7 +56,6 @@ def deserialize_TxIn(d, transaction_index=None, owner_keys=None):
   else:
     result['txid'] = long_hex(d['prevout_hash'][::-1])
     result['vout'] = d['prevout_n']
-  result['sequence']=d['sequence']
   return result
 
 def parse_TxOut(vds):
@@ -144,7 +143,6 @@ def deserialize_Transaction(d, transaction_index=None, owner_keys=None,
     txout['n'] = idx
     result['vout'].append(txout)
   result['txid'] = binascii.hexlify(hashlib.sha256(hashlib.sha256(d['__data__']).digest()).digest()[::-1])
-  result['vsize']=int(round((3*len(d['__data__'])+result['size'])/4.0))
   return result
 
 def parse_MerkleTx(vds):
@@ -336,13 +334,21 @@ def extract_public_key(bytes, version='\x00'):
     decoded = [ x for x in script_GetOp(bytes) ]
   except (struct.error, IndexError):
     return None
-
   # non-generated TxIn transactions push a signature
   # (seventy-something bytes) and then their public key
   # (33 or 65 bytes) onto the stack:
   match = [ opcodes.OP_PUSHDATA4, opcodes.OP_PUSHDATA4 ]
   if match_decoded(decoded, match):
     if (decoded[0][0]==0 and decoded[1][0] in [20, 32]):
+      #Native Segwit P2PKH or P2SH output
+      #Return the exact bytes
+      return decoded[1][1]
+    return public_key_to_bc_address(decoded[1][1], version=version)
+
+  # bech32m has version byte 1, OP_1 opcode 81
+  match = [ opcodes.OP_1, opcodes.OP_PUSHDATA4 ]
+  if match_decoded(decoded, match):
+    if (decoded[0][0]==81 and decoded[1][0] in [20, 32]):
       #Native Segwit P2PKH or P2SH output
       #Return the exact bytes
       return decoded[1][1]
