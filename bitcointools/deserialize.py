@@ -56,6 +56,7 @@ def deserialize_TxIn(d, transaction_index=None, owner_keys=None):
   else:
     result['txid'] = long_hex(d['prevout_hash'][::-1])
     result['vout'] = d['prevout_n']
+  result['sequence']=d['sequence']
   return result
 
 def parse_TxOut(vds):
@@ -143,6 +144,7 @@ def deserialize_Transaction(d, transaction_index=None, owner_keys=None,
     txout['n'] = idx
     result['vout'].append(txout)
   result['txid'] = binascii.hexlify(hashlib.sha256(hashlib.sha256(d['__data__']).digest()).digest()[::-1])
+  result['vsize']=int(round((3*len(d['__data__'])+result['size'])/4.0))
   return result
 
 def parse_MerkleTx(vds):
